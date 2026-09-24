@@ -167,8 +167,18 @@
       background: rgba(2, 132, 199, 0.95); color: #ffffff; border-radius: 10px; font-size: 2rem; font-weight: bold; 
       display: flex; align-items: center; justify-content: center; cursor: pointer; border: 3px solid #38bdf8;
       backdrop-filter: blur(2px); transition: all 0.2s ease-in-out; user-select: none;
+
+      /* 🟡 修復：解決平板觸控點擊點選殘留黃色外框與焦點 */
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+      -webkit-touch-callout: none;
     }
     
+    .grid-cell:focus {
+      outline: none;
+      box-shadow: none;
+    }
+
     .grid-cell-text {
       position: relative;
       z-index: 2;
