@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>雙人對戰語文棒球 - 第一人稱動畫版</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: "Microsoft JhengHei", sans-serif; background: #0f172a; color: #f8fafc; padding: 10px; text-align: center; margin: 0; overflow-x: hidden; }
+    
+    /* 設定選單與規則 Modal 通用樣式 */
+    .modal-box { background: #ffffff; color: #1e293b; border-radius: 20px; padding: 20px; max-width: 520px; margin: 20px auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: left; }
+    .modal-header { font-size: 1.3rem; font-weight: bold; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; text-align: center; }
+    .form-group { margin-bottom: 10px; text-align: left; }
+    .form-group label { font-size: 0.85rem; font-weight: bold; color: #64748b; display: block; margin-bottom: 3px; }
+    .row { display: flex; gap: 10px; }
+    .col { flex: 1; }
+    select { width: 100%; padding: 8px; font-size: 0.95rem; font-weight: bold; border: 2px solid #cbd5e1; border-radius: 8px; background: #f8fafc; color: #0f172a; outline: none; }
+    
+    /* 按鈕樣式 */
+    .btn-action { width: 100%; padding: 12px; font-size: 1rem; font-weight: bold; background: #22c55e; color: white; border: none; border-radius: 10px; cursor: pointer; margin-top: 8px; transition: all 0.2s; }
+    .btn-action:hover { background: #16a34a; transform: translateY(-1px); }
+    .btn-restart { background: #eab308; color: #0f172a; display: none; margin-bottom: 12px; }
+    .btn-secondary { background: #64748b; color: white; margin-top: 10px; font-size: 0.9rem; padding: 8px; }
+
+    /* 遊戲規則彈窗專用樣式 */
+    #rule-modal { display: none; }
+    .rule-list { font-size: 0.95rem; line-height: 1.6; color: #334155; padding-left: 20px; margin: 10px 0; }
+    .rule-list li { margin-bottom: 8px; }
+    .rule-highlight { color: #0284c7; font-weight: bold; }
+    .rule-badge { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
+
+    /* 主遊戲視窗 */
+    #game-container { display: none; max-width: 900px; margin: 0 auto; position: relative; background: #1e293b; border-radius: 16px; padding: 15px; border: 2px solid #334155; }
+    
+    /* 上方比分與紀錄台資訊 */
+    .top-bar { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      background: rgba(15, 23, 42, 0.9); 
+      padding: 12px 22px; 
+      border-radius: 14px; 
+      margin-bottom: 12px; 
+      font-weight: bold; 
+    }
+    .team-scores { 
+      font-size: 1.5rem; 
+      text-align: left; 
+      line-height: 1.5; 
+    }
+    .score-text { 
+      font-size: 1.6rem; 
+      color: #38bdf8; 
+    }
+    .score-num { 
+      font-size: 2.1rem; 
+      color: #facc15; 
+      text-shadow: 0 0 10px rgba(250, 204, 21, 0.5); 
+    }
+
+    /* 右上角菱形紀錄台 */
+    .field-diamond-container { 
+      position: relative; 
+      width: 140px; 
+      height: 140px; 
+      background: rgba(15, 23, 42, 0.85); 
+      border-radius: 12px; 
+      border: 2px solid #64748b; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .diamond-base { 
+      position: absolute; 
+      width: 75px; 
+      height: 75px; 
+      border: 3px solid #64748b; 
+      transform: rotate(45deg); 
+    }
+    .base-dot { 
+      position: absolute; 
+      width: 18px; 
+      height: 18px; 
+      background: #475569; 
+      transform: rotate(45deg); 
+      border-radius: 3px; 
+    }
+    .base-dot.b-1st { top: 61px; right: 14px; }
+    .base-dot.b-2nd { top: 14px; left: 61px; }
+    .base-dot.b-3rd { top: 61px; left: 14px; }
+    .base-dot.on { 
+      background: #f59e0b; 
+      box-shadow: 0 0 12px #f59e0b; 
+    }
+
+    .sbo-counts { 
+      font-size: 1.25rem; 
+      font-weight: 900; 
+      text-align: center; 
+      z-index: 2; 
+      line-height: 1.3; 
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+    .count-s { color: #38bdf8; } 
+    .count-b { color: #4ade80; } 
+    .count-o { color: #f87171; }
+
+    /* 棒球場主視角容器 */
+    .field-viewport { 
+      position: relative; width: 100%; height: 500px; border-radius: 14px; overflow: hidden;
+      background: linear-gradient(to bottom, #38bdf8 0%, #0284c7 40%, #15803d 40%, #166534 100%);
+      box-shadow: inset 0 0 25px rgba(0,0,0,0.5); margin-bottom: 12px;
+    }
+
+    /* 球場透視畫布 */
+    #field-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+    /* 投手人物 */
+    .pitcher-character {
+      position: absolute; top: 165px; left: 50%; transform: translateX(-50%); z-index: 2;
+      width: 32px; height: 60px; transition: transform 0.2s;
+    }
+    .pitcher-body { width: 18px; height: 28px; background: #f8fafc; border-radius: 5px; margin: 0 auto; border: 1px solid #0f172a; }
+    .pitcher-head { width: 16px; height: 16px; background: #fca5a5; border-radius: 50%; margin: 0 auto; border: 1px solid #0f172a; }
+    .pitcher-leg { width: 5px; height: 18px; background: #64748b; margin: 0 auto; }
+    
+    /* 投球動作 */
+    .pitcher-character.windup { transform: translateX(-50%) translateY(-12px) rotate(-10deg); }
+    .pitcher-character.release { transform: translateX(-50%) translateY(6px) scale(1.1); }
+
+    /* 飛行的棒球 */
+    .flying-ball {
+      position: absolute; width: 12px; height: 12px; background: #ffffff; border-radius: 50%;
+      border: 1px solid #dc2626; box-shadow: 0 0 12px #ffffff; z-index: 4; display: none;
+    }
+    .flying-ball.pitching {
+      display: block;
+      animation: pitchAnimation 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+    @keyframes pitchAnimation {
+      0% { top: 180px; left: 50%; transform: translate(-50%, -50%) scale(0.6); }
+      100% { top: 420px; left: 50%; transform: translate(-50%, -50%) scale(4); }
+    }
+
+    /* 題目顯示板 */
+    .question-banner {
+      position: absolute; top: 18px; left: 50%; transform: translateX(-50%); z-index: 3;
+      background: rgba(15, 23, 42, 0.88); border: 3px solid #38bdf8; border-radius: 14px;
+      padding: 12px 25px; color: #facc15; font-size: 1.7rem; font-weight: bold; width: 88%;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    }
+
+    /* 九宮格容器 */
+    .grid-container {
+      position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); z-index: 3;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 370px; height: 245px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 10px;
+      border-radius: 16px;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.4), inset 0 0 0 2px rgba(255, 255, 255, 0.9);
+    }
+    
+    .grid-cell { 
+      position: relative;
+      background: rgba(2, 132, 199, 0.95); color: #ffffff; border-radius: 10px; font-size: 2rem; font-weight: bold; 
+      display: flex; align-items: center; justify-content: center; cursor: pointer; border: 3px solid #38bdf8;
+      backdrop-filter: blur(2px); transition: all 0.2s ease-in-out; user-select: none;
+
+      /* 🟡 修復：解決平板觸控點擊點選殘留黃色外框與焦點 */
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+      -webkit-touch-callout: none;
+    }
+    
+    .grid-cell:focus {
+      outline: none;
+      box-shadow: none;
+    }
+
+    .grid-cell-text {
+      position: relative;
+      z-index: 2;
+    }
+
+    .grid-cell:hover { background: rgba(3, 105, 161, 0.95); transform: scale(1.05); border-color: #facc15; }
+    .grid-cell.disabled { cursor: not-allowed; opacity: 0.5; }
+
+    /* 綠色空心圈圈 */
+    .grid-cell.correct-highlight::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 58px;
+      height: 58px;
+      transform: translate(-50%, -50%);
+      border: 6px solid #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 12px #22c55e, inset 0 0 8px #22c55e;
+      z-index: 1;
+      pointer-events: none;
+      animation: pulseCircle 0.6s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulseCircle {
+      0% { transform: translate(-50%, -50%) scale(0.95); }
+      100% { transform: translate(-50%, -50%) scale(1.1); }
+    }
+
+    /* 中央打擊結果提示文字格 */
+    .result-overlay {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+      background: rgba(15, 23, 42, 0.95); border: 4px solid #facc15; border-radius: 16px;
+      padding: 18px 36px; color: #ffffff; font-size: 2.2rem; font-weight: bold; z-index: 10;
+      box-shadow: 0 0 35px rgba(250, 204, 21, 0.7); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none; text-align: center; white-space: nowrap;
+    }
+    .result-overlay.show { transform: translate(-50%, -50%) scale(1); }
+
+    .turn-indicator { font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; padding: 10px; border-radius: 8px; background: #38bdf8; color: #0f172a; }
+    .log-panel { background: #0f172a; border-radius: 8px; padding: 10px 14px; height: 90px; overflow-y: auto; text-align: left; font-size: 0.95rem; color: #cbd5e1; }
+    .log-item { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- 1. 設定選單區 -->
+  <div class="modal-box" id="setup-panel">
+    <div class="modal-header">⚾ 《雙人對戰語文棒球》九宮格賽</div>
+    <div class="form-group">
+      <label>學期</label>
+      <select id="sel-semester" onchange="loadLessons()">
+        <option value="115-1">115學年度上學期</option>
+        <option value="114-2">114學年度下學期</option>
+        <option value="114-1">114學年度上學期</option>
+      </select>
+    </div>
+    <div class="row">
+      <div class="col form-group">
+        <label>版本</label>
+        <select id="sel-publisher" onchange="loadLessons()">
+          <option value="南一">南一版</option>
+          <option value="康軒">康軒版</option>
+          <option value="翰林">翰林版</option>
+        </select>
+      </div>
+      <div class="col form-group">
+        <label>年級</label>
+        <select id="sel-grade" onchange="loadLessons()">
+          <option value="1">1年級</option>
+          <option value="2">2年級</option>
+          <option value="3">3年級</option>
+          <option value="4">4年級</option>
+          <option value="5">5年級</option>
+          <option value="6">6年級</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>課別 <span id="lesson-status" style="color:#eab308">(自動載入中...)</span></label>
+      <select id="sel-lesson" disabled>
+        <option value="">-- 請先載入課別 --</option>
+      </select>
+    </div>
+    <button class="btn-action" onclick="fetchAndShowRules()">🚀 選擇完畢，進入遊戲</button>
+  </div>
+
+  <!-- 2. 遊戲規則說明 Modal -->
+  <div class="modal-box" id="rule-modal">
+    <div class="modal-header">📜 遊戲規則與玩法說明</div>
+    <ol class="rule-list">
+      <li><span class="rule-badge">盤面結構</span> 每題共有 <span class="rule-highlight">3 個選項</span>，在 3x3 九宮格中每個選項會各自出現 <span class="rule-highlight">3 次</span>（共 9 格）。</li>
+      <li><span class="rule-badge">回合順序</span> 每一球開始時，由<span class="rule-highlight">投手先選擇</span>防守位置，完成後換<span class="rule-highlight">打者選擇</span>正確答案與九宮格位置。</li>
+      <li><span class="rule-badge">正確提示</span> 雙方選擇後，系統會短暫顯示正確字的<span style="color:#22c55e; font-weight:bold;">綠色圈圈</span>供對照。</li>
+      <li><span class="rule-badge">打擊效果</span> 
+        <ul>
+          <li><b>雙方皆對＋同位置：</b> 強力安打或全壘打！</li>
+          <li><b>雙方皆對＋不同位置：</b> 機率安打或高飛球接殺！</li>
+          <li><b>打者選對＋投手選錯：</b> 壞球 (Ball +1)。</li>
+          <li><b>打者選錯＋投手選對：</b> 好球 (Strike +1) 或高飛球接殺！</li>
+          <li><b>雙方皆選錯：</b> 界外球 (Foul，好球 +1)。</li>
+        </ul>
+      </li>
+      <li><span class="rule-badge">勝負判定</span> 滿 3 好球三振出局、滿 4 壞球保送上壘，滿 3 出局則攻守交換！</li>
+    </ol>
+    <button class="btn-action" onclick="startGameFromRules()">⚔️ 我瞭解了，開始比賽！</button>
+  </div>
+
+  <!-- 3. 主遊戲畫面 -->
+  <div id="game-container">
+    <div class="top-bar">
+      <div class="team-scores">
+        <div><span id="inning-text" style="color:#facc15; font-size: 1.6rem;">第 1 局 上</span></div>
+        <div class="score-text">
+          P1: <span id="score-p1" class="score-num">0</span> 分 | 
+          P2: <span id="score-p2" class="score-num">0</span> 分
+        </div>
+      </div>
+
+      <div class="field-diamond-container">
+        <div class="diamond-base"></div>
+        <div id="base-1" class="base-dot b-1st"></div>
+        <div id="base-2" class="base-dot b-2nd"></div>
+        <div id="base-3" class="base-dot b-3rd"></div>
+        <div class="sbo-counts">
+          <div class="count-s">S: <span id="cnt-s">0</span></div>
+          <div class="count-b">B: <span id="cnt-b">0</span></div>
+          <div class="count-o">O: <span id="cnt-o">0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field-viewport">
+      <canvas id="field-canvas"></canvas>
+      <div class="question-banner" id="q-text">題目載入中...</div>
+
+      <div class="pitcher-character" id="pitcher-guy">
+        <div class="pitcher-head"></div>
+        <div class="pitcher-body"></div>
+        <div class="pitcher-leg"></div>
+      </div>
+
+      <div class="flying-ball" id="anim-ball"></div>
+      <div class="grid-container" id="grid-board"></div>
+      <div class="result-overlay" id="result-overlay">【一壘安打】</div>
+    </div>
+
+    <button id="btn-restart-game" class="btn-action btn-restart" onclick="restartSameLesson()">🔄 同一課重新開局</button>
+    <div id="turn-title" class="turn-indicator">請 玩家 2 (投手) 選擇防守位置 (9格中任選1格)</div>
+    
+    <div class="log-panel" id="game-log">
+      <div>🎮 遊戲開始！請雙方玩家準備進行比賽。</div>
+    </div>
+
+    <button id="btn-back-to-setup" class="btn-action btn-secondary" onclick="backToSetup()">⚙️ 返回重新選擇課別</button>
+  </div>
+
+<script>
+let allParsedQuestions = []; 
+let currentGlobalQIndex = 0; 
+let totalPitchCount = 0;      
+let currentCorrectChar = ""; 
+let gridData = [];         
+let batterChoice = null;   
+let pitcherChoice = null;  
+let isShowingAnswer = false; 
+
+let gameState = {
+  inning: 1, isTopInning: true, scoreP1: 0, scoreP2: 0,
+  strikes: 0, balls: 0, outs: 0, bases: [false, false, false], 
+  phase: 'PITCHER_TURN'
+};
+
+// --- 畫布與圖形繪製 ---
+function drawField() {
+  const canvas = document.getElementById('field-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.fillStyle = '#15803d';
+  ctx.fillRect(0, 180, w, h - 180);
+
+  ctx.beginPath();
+  ctx.ellipse(w / 2, 180, w * 0.6, 40, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#0f766e';
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.ellipse(w / 2, 190, 40, 14, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#b45309';
+  ctx.fill();
+
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(w / 2 - 20, 190); ctx.lineTo(-30, h);
+  ctx.moveTo(w / 2 + 20, 190); ctx.lineTo(w + 30, h);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.strokeRect(w / 2 - 185, h - 255, 370, 245);
+}
+
+// --- 載入課別與題目 ---
+function loadLessons() {
+  const [year, term] = document.getElementById('sel-semester').value.split('-');
+  const publisher = document.getElementById('sel-publisher').value;
+  const grade = parseInt(document.getElementById('sel-grade').value, 10);
+  const sheetName = `${year}${publisher}`;
+  const minC = grade * 100, maxC = (grade + 1) * 100;
+  const sql = encodeURIComponent(`SELECT C, D WHERE A=${year} AND B=${term} AND C>${minC} AND C<${maxC}`);
+  sendJsonpRequest(sheetName, sql, 'LESSON_LIST');
+}
+
+function fetchAndShowRules() {
+  const selectedC = document.getElementById('sel-lesson').value;
+  if (!selectedC) return alert("請先選擇課別！");
+  const [year, term] = document.getElementById('sel-semester').value.split('-');
+  const publisher = document.getElementById('sel-publisher').value;
+  const sheetName = `${year}${publisher}`;
+  const sql = encodeURIComponent(`SELECT D, E WHERE A=${year} AND B=${term} AND C=${selectedC}`);
+  sendJsonpRequest(sheetName, sql, 'QUESTION_DATA');
+}
+
+function sendJsonpRequest(sheetName, sql, mode) {
+  window.currentMode = mode;
+  const oldScript = document.getElementById('gviz-script');
+  if (oldScript) oldScript.remove();
+  const targetUrl = `https://docs.google.com/spreadsheets/d/1AjRPHqi2Ym1KKlMUpj9Z412LZhyIz4-Db_06x6oPLIM/gviz/tq?tqx=responseHandler:handleGvizResponse&sheet=${encodeURIComponent(sheetName)}&tq=${sql}&headers=1&nocache=${Date.now()}`;
+  const script = document.createElement('script');
+  script.id = 'gviz-script';
+  script.src = targetUrl;
+  document.body.appendChild(script);
+}
+
+function handleGvizResponse(response) {
+  if (window.currentMode === 'LESSON_LIST') {
+    const lessonSelect = document.getElementById('sel-lesson');
+    lessonSelect.innerHTML = '';
+    if (!response.table || !response.table.rows || response.table.rows.length === 0) {
+      lessonSelect.disabled = true;
+      lessonSelect.innerHTML = '<option value="">(無資料)</option>';
+      document.getElementById('lesson-status').innerText = '⚠️ 無課別';
+      return;
+    }
+    response.table.rows.forEach(r => {
+      const codeC = r.c[0].v;
+      const nameD = r.c[1] ? r.c[1].v : `第 ${codeC % 100} 課`;
+      const opt = document.createElement('option');
+      opt.value = codeC;
+      opt.innerText = `第 ${codeC % 100} 課：${nameD}`;
+      lessonSelect.appendChild(opt);
+    });
+    lessonSelect.disabled = false;
+    document.getElementById('lesson-status').innerText = `(共 ${response.table.rows.length} 課)`;
+
+  } else if (window.currentMode === 'QUESTION_DATA') {
+    if (!response.table.rows || response.table.rows.length === 0) return alert("該課無題目資料！");
+    const rawE = response.table.rows[0].c[1] ? response.table.rows[0].c[1].v : "";
+    parseQuestionData(rawE);
+  }
+}
+
+function parseQuestionData(rawStr) {
+  let items = rawStr.split(/,|\n/).map(s => s.trim()).filter(s => s !== '');
+  allParsedQuestions = [];
+  let currentGroupTargets = null;
+
+  for (let item of items) {
+    let cleanHeaderMatch = item.match(/^([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])$/);
+    if (cleanHeaderMatch) {
+      currentGroupTargets = [cleanHeaderMatch[1], cleanHeaderMatch[2], cleanHeaderMatch[3]];
+      continue;
+    }
+    if (!currentGroupTargets) currentGroupTargets = ['瑕', '假', '蝦'];
+
+    let cleanItem = item.replace(/\s+[\u4e00-\u9fa5]\s+[\u4e00-\u9fa5](\s+[\u4e00-\u9fa5])?$/g, '').trim();
+
+    let ans = "";
+    for (let target of currentGroupTargets) {
+      if (cleanItem.includes(target)) {
+        ans = target;
+        break;
+      }
+    }
+
+    if (ans !== "") {
+      allParsedQuestions.push({
+        targets: [...currentGroupTargets],
+        rawText: cleanItem,
+        answerChar: ans
+      });
+    }
+  }
+
+  if (allParsedQuestions.length === 0) return alert("題目解析失敗，請檢查資料欄位！");
+  
+  // 顯示規則彈窗
+  document.getElementById('setup-panel').style.display = 'none';
+  document.getElementById('rule-modal').style.display = 'block';
+}
+
+function startGameFromRules() {
+  document.getElementById('rule-modal').style.display = 'none';
+  initGameData();
+}
+
+function initGameData() {
+  currentGlobalQIndex = 0;
+  totalPitchCount = 0;
+
+  gameState = {
+    inning: 1, isTopInning: true, scoreP1: 0, scoreP2: 0,
+    strikes: 0, balls: 0, outs: 0, bases: [false, false, false], phase: 'PITCHER_TURN'
+  };
+
+  document.getElementById('game-container').style.display = 'block';
+  document.getElementById('btn-restart-game').style.display = 'none';
+  document.getElementById('game-log').innerHTML = '<div>🎮 遊戲開始！請雙方玩家準備進行比賽。</div>';
+
+  setTimeout(drawField, 100);
+  startNextPitch();
+}
+
+function startNextPitch() {
+  if (gameState.phase === 'GAME_OVER') return;
+
+  gameState.phase = 'PITCHER_TURN';
+  batterChoice = null;
+  pitcherChoice = null;
+  isShowingAnswer = false;
+  totalPitchCount++;
+
+  let qData = allParsedQuestions[currentGlobalQIndex];
+  setupGridBoard(qData.targets);
+
+  currentCorrectChar = qData.answerChar;
+  let displayQ = qData.rawText.replace(currentCorrectChar, " __ ");
+
+  document.getElementById('q-text').innerText = `第 ${totalPitchCount} 球：${displayQ}`;
+  currentGlobalQIndex = (currentGlobalQIndex + 1) % allParsedQuestions.length;
+
+  updateUI();
+  renderGrid();
+}
+
+function setupGridBoard(targets) {
+  let items = [targets[0], targets[0], targets[0], targets[1], targets[1], targets[1], targets[2], targets[2], targets[2]];
+  gridData = items.sort(() => Math.random() - 0.5).map(char => ({ text: char }));
+}
+
+function renderGrid() {
+  const gridEl = document.getElementById('grid-board');
+  gridEl.innerHTML = '';
+  gridData.forEach((item, index) => {
+    const cell = document.createElement('div');
+    cell.className = 'grid-cell';
+    if (gameState.phase === 'GAME_OVER') cell.classList.add('disabled');
+    
+    const textSpan = document.createElement('span');
+    textSpan.className = 'grid-cell-text';
+    textSpan.innerText = item.text;
+    cell.appendChild(textSpan);
+
+    cell.onclick = () => handleCellClick(index);
+    gridEl.appendChild(cell);
+  });
+}
+
+function updateUI() {
+  const batterName = gameState.isTopInning ? "玩家 1" : "玩家 2";
+  const pitcherName = gameState.isTopInning ? "玩家 2" : "玩家 1";
+
+  if (gameState.phase === 'PITCHER_TURN') {
+    document.getElementById('turn-title').innerText = `請 ${pitcherName} (投手) 選擇防守格 (9格中任選1格)`;
+    document.getElementById('turn-title').style.background = '#f87171';
+    document.getElementById('turn-title').style.color = '#ffffff';
+  } else if (gameState.phase === 'BATTER_TURN') {
+    document.getElementById('turn-title').innerText = `請換 ${batterName} (打者) 選擇正確字的九宮格位置`;
+    document.getElementById('turn-title').style.background = '#38bdf8';
+    document.getElementById('turn-title').style.color = '#0f172a';
+  }
+
+  document.getElementById('score-p1').innerText = gameState.scoreP1;
+  document.getElementById('score-p2').innerText = gameState.scoreP2;
+  document.getElementById('inning-text').innerText = `第 ${gameState.inning} 局 ${gameState.isTopInning ? '上' : '下'}`;
+  
+  document.getElementById('cnt-s').innerText = gameState.strikes;
+  document.getElementById('cnt-b').innerText = gameState.balls;
+  document.getElementById('cnt-o').innerText = gameState.outs;
+
+  document.getElementById('base-1').className = `base-dot b-1st ${gameState.bases[0] ? 'on' : ''}`;
+  document.getElementById('base-2').className = `base-dot b-2nd ${gameState.bases[1] ? 'on' : ''}`;
+  document.getElementById('base-3').className = `base-dot b-3rd ${gameState.bases[2] ? 'on' : ''}`;
+}
+
+// 🟢 顯示綠色圈圈提示 (1.5 秒 / 1500ms)
+function showCorrectHighlight(callback) {
+  isShowingAnswer = true;
+  const gridCells = document.querySelectorAll('.grid-cell');
+  
+  gridData.forEach((item, idx) => {
+    if (item.text === currentCorrectChar && gridCells[idx]) {
+      gridCells[idx].classList.add('correct-highlight');
+    }
+  });
+
+  setTimeout(() => {
+    gridCells.forEach(cell => cell.classList.remove('correct-highlight'));
+    isShowingAnswer = false;
+    if (callback) callback();
+  }, 1500);
+}
+
+function handleCellClick(index) {
+  if (gameState.phase === 'GAME_OVER' || isShowingAnswer) return;
+
+  if (gameState.phase === 'PITCHER_TURN') {
+    pitcherChoice = index;
+    showCorrectHighlight(() => {
+      gameState.phase = 'BATTER_TURN';
+      logAction(`投手已選擇位置，輪到打者選擇！`);
+      updateUI();
+    });
+  } else if (gameState.phase === 'BATTER_TURN') {
+    batterChoice = index;
+    showCorrectHighlight(() => {
+      playPitchAnimationAndResolve();
+    });
+  }
+}
+
+function playPitchAnimationAndResolve() {
+  const pitcherGuy = document.getElementById('pitcher-guy');
+  const ball = document.getElementById('anim-ball');
+
+  pitcherGuy.classList.add('windup');
+
+  setTimeout(() => {
+    pitcherGuy.classList.remove('windup');
+    pitcherGuy.classList.add('release');
+    ball.classList.add('pitching');
+
+    setTimeout(() => {
+      ball.classList.remove('pitching');
+      pitcherGuy.classList.remove('release');
+      resolveTurn();
+    }, 600);
+
+  }, 400);
+}
+
+function showResultOverlay(titleText) {
+  const overlay = document.getElementById('result-overlay');
+  overlay.innerText = titleText;
+  overlay.classList.add('show');
+  setTimeout(() => {
+    overlay.classList.remove('show');
+  }, 1600);
+}
+
+function resolveTurn() {
+  const batterChar = gridData[batterChoice].text;
+  const pitcherChar = gridData[pitcherChoice].text;
+
+  const batterIsRight = (batterChar === currentCorrectChar);
+  const pitcherIsRight = (pitcherChar === currentCorrectChar);
+  const samePosition = (batterChoice === pitcherChoice);
+
+  let resultMsg = "";
+  let overlayText = "";
+
+  if (batterIsRight && pitcherIsRight) {
+    if (samePosition) {
+      const rand = Math.random();
+      if (rand < 0.50) {
+        overlayText = "💥 一壘安打！";
+        resultMsg = `💥 打投捉對！打者擊出【一壘安打】！`;
+        advanceBases(1);
+      } else if (rand < 0.90) {
+        overlayText = "🚀 二壘安打！";
+        resultMsg = `🚀 強棒對決！打者擊出【二壘安打】！`;
+        advanceBases(2);
+      } else {
+        overlayText = "🎆 全壘打！";
+        resultMsg = `🎆 完美鎖定！打者擊出【全壘打】轟出牆外！`;
+        advanceBases(4);
+      }
+      resetCount();
+    } else {
+      if (Math.random() < 0.40) {
+        overlayText = "⚾ 高飛球接殺！";
+        resultMsg = `⚾ 投手預判位置成功，打者擊出【高飛球接殺】！(出局 +1)`;
+        addOut();
+      } else {
+        overlayText = "⚾ 一壘安打！";
+        resultMsg = `⚾ 位置不同但打者強行揮擊出【一壘安打】！`;
+        advanceBases(1);
+        resetCount();
+      }
+    }
+  } 
+  else if (batterIsRight && !pitcherIsRight) {
+    overlayText = "🟢 壞球 Ball！";
+    resultMsg = `🟢 打者選對字（${currentCorrectChar}），投手投出壞球！【壞球 Ball +1】！`;
+    addBall();
+  } 
+  else if (!batterIsRight && pitcherIsRight) {
+    if (Math.random() < 0.50) {
+      overlayText = "⚾ 高飛球接殺！";
+      resultMsg = `⚾ 投手精準鎖定好球帶，打者擊出【高飛球接殺】！(出局 +1)`;
+      addOut();
+    } else {
+      overlayText = "🔴 好球 Strike！";
+      resultMsg = `🔴 投手鎖定好球帶，打者揮空！【好球 Strike +1】！`;
+      addStrike();
+    }
+  } 
+  else {
+    overlayText = "⚪ 界外球！";
+    resultMsg = `⚪ 雙方皆選錯字！形成【界外球】(好球 +1)！`;
+    addStrike(true);
+  }
+
+  showResultOverlay(overlayText);
+  logAction(resultMsg);
+  
+  if (gameState.phase !== 'GAME_OVER' && gameState.outs < 3) {
+    setTimeout(startNextPitch, 2000);
+  }
+}
+
+function advanceBases(numBases) {
+  let runsScored = 0;
+  if (numBases === 4) {
+    runsScored += gameState.bases.filter(b => b).length + 1;
+    gameState.bases = [false, false, false];
+  } else {
+    for (let i = 0; i < numBases; i++) {
+      if (gameState.bases[2]) runsScored++;
+      gameState.bases[2] = gameState.bases[1];
+      gameState.bases[1] = gameState.bases[0];
+      gameState.bases[0] = (i === 0);
+    }
+  }
+  if (runsScored > 0) {
+    addScore(runsScored);
+    logAction(`🎉 跑者得分！得分 +${runsScored}`);
+  }
+}
+
+function walkBatter() {
+  logAction("🎁 累積 4 壞球，打者【保送上壘】！");
+  let runsScored = 0;
+  if (gameState.bases[0] && gameState.bases[1] && gameState.bases[2]) runsScored = 1;
+  else if (gameState.bases[0] && gameState.bases[1]) gameState.bases[2] = true;
+  else if (gameState.bases[0]) gameState.bases[1] = true;
+  gameState.bases[0] = true;
+
+  if (runsScored > 0) {
+    addScore(runsScored);
+    logAction(`🎉 滿壘擠回 1 分！`);
+  }
+  resetCount();
+}
+
+function addScore(pts) {
+  if (gameState.isTopInning) gameState.scoreP1 += pts;
+  else gameState.scoreP2 += pts;
+}
+
+function addStrike(isFoul = false) {
+  if (isFoul && gameState.strikes === 2) return;
+  gameState.strikes++;
+  if (gameState.strikes >= 3) {
+    logAction("❌ 累積 3 好球，打者被【三振出局】！");
+    addOut();
+  }
+}
+
+function addBall() {
+  gameState.balls++;
+  if (gameState.balls >= 4) walkBatter();
+}
+
+function addOut() {
+  gameState.outs++;
+  resetCount();
+  if (gameState.outs >= 3) switchInning();
+}
+
+function resetCount() {
+  gameState.strikes = 0;
+  gameState.balls = 0;
+}
+
+function switchInning() {
+  resetCount();
+  gameState.outs = 0;
+  gameState.bases = [false, false, false];
+
+  if (gameState.isTopInning) {
+    gameState.isTopInning = false;
+    alert("📢 上半局結束，攻守交換！(玩家 2 改為打者，玩家 1 改為投手)");
+    logAction("🔄 上半局結束，攻守交換！清空壘包。");
+    setTimeout(startNextPitch, 1000);
+  } else {
+    gameState.phase = 'GAME_OVER';
+    updateUI();
+    renderGrid();
+
+    let winner = "平手！";
+    if (gameState.scoreP1 > gameState.scoreP2) winner = "🏆 玩家 1 獲勝！";
+    else if (gameState.scoreP2 > gameState.scoreP1) winner = "🏆 玩家 2 獲勝！";
+
+    alert(`🏆 比賽結束！\n玩家 1 得分：${gameState.scoreP1}\n玩家 2 得分：${gameState.scoreP2}\n\n結果：${winner}`);
+
+    const titleEl = document.getElementById('turn-title');
+    titleEl.innerText = `🏆 比賽結束 - ${winner}`;
+    titleEl.style.background = '#22c55e';
+    titleEl.style.color = '#ffffff';
+
+    document.getElementById('q-text').innerText = `請點選下方按鈕重新開始或選擇課別`;
+    document.getElementById('btn-restart-game').style.display = 'block';
+
+    logAction(`🏁 全場比賽結束！最終比數 ${gameState.scoreP1} : ${gameState.scoreP2}。`);
+  }
+}
+
+function restartSameLesson() {
+  initGameData();
+}
+
+function backToSetup() {
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('rule-modal').style.display = 'none';
+  document.getElementById('setup-panel').style.display = 'block';
+}
+
+function logAction(msg) {
+  const logEl = document.getElementById('game-log');
+  const div = document.createElement('div');
+  div.className = 'log-item';
+  div.innerHTML = `• ${msg}`;
+  logEl.prepend(div);
+}
+
+window.onload = loadLessons;
+window.onresize = drawField;
+</script>
+</body>
+</html>
